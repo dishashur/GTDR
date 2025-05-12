@@ -7,7 +7,7 @@ this script is for experiments examining the differnet aspects of dimension redu
 shape distortion, local structure, global structure, maintainence of structure
 for downstream in inference, 6 points of a dimension reduction methods
 """
-global layouts = []
+
 
 #1a. datasets for 2D->2D(shape distortion) - galaxy(2D), clusters 2D, shape 2D
 

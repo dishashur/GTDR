@@ -1,81 +1,9 @@
-#scipt for all of the important functions to be used multiple times by the rest of the projects
 
-using Random, Statistics, Distributions, TSne, LinearAlgebra, CairoMakie, StatsBase, NearestNeighbors, SparseArrays, ...
-DataFrames, JSON, JLD2, FileIO, MatrixNetworks, Graphs, GraphPlot, NPZ
-include("/Users/alice/Documents/gtda/gtda_julia/GraphTDA.jl")
-include("/Users/alice/Documents/gtda/diffusion-tools.jl")
- 
+using Random, Statistics, Distributions, TSne, LinearAlgebra, StatsBase, NearestNeighbors, 
+      SparseArrays, DataFrames, JSON, JLD2, FileIO, MatrixNetworks, Graphs, GraphPlot, NPZ
 
+include("GraphTDA.jl")
 
-function segregated_topological_lens(X,k;dims = 10,seed = 10, usefull = false)
-    """
-    This function is meant to analyze the effect of the overlap of the projected columns 
-    """
-    Random.seed!(seed)
-    A = randn(size(X,2),dims)
-    X = X .- mean(X)
-    X = X ./ std(X)
-    Xnoisy = X*A
-    Xnoisy = Xnoisy .- mean(Xnoisy)
-    Xnoisy = Xnoisy ./ std(Xnoisy)
-    Xnoisy = Xnoisy[:,randperm(size(Xnoisy,2))]
-    if usefull_graph
-        Xgraph = Xnoisy
-    else
-        Xgraph = Xnoisy[:,1:dims-k]
-    end
-    kdtree = KDTree(Xgraph'; leafsize = 25)
-    idxs, dists = NearestNeighbors.knn(kdtree, Xgraph', 10, true);
-    ei = []
-    ej = []
-    for i in idxs
-        for j in range(2,length(i))
-            append!(ei,i[1])
-            append!(ej,i[j])
-        end
-    end
-    G = sparse(ei,ej,ones(length(ei)),size(Xgraph,1),size(Xgraph,1))
-    G = max.(G,G')
-    lens = Xnoisy[:,end-k+1:end]
-    lens = lens .- mean(lens)
-    lens = lens ./ norm(lens)
-    @show norm(lens)
-    @show var(lens)
-    return Xnoisy, Xgraph, G, lens
-end
-
-function topological_lens(X,k;dims = 10,seed = 10)
-    """
-    This function is the main function used where full columns are used for developing the graph and any of the 
-    k columns are used for lens
-    """
-    Random.seed!(seed)
-    A = randn(size(X,2),dims)
-    X = X .- mean(X)
-    X = X ./ std(X)
-    Xnoisy = X*A
-    Xnoisy = Xnoisy .- mean(Xnoisy)
-    Xnoisy = Xnoisy ./ std(Xnoisy)
-    Xgraph = Xnoisy
-    kdtree = KDTree(Xgraph'; leafsize = 25)
-    idxs, dists = NearestNeighbors.knn(kdtree, Xgraph', 10, true);
-    ei = []
-    ej = []
-    for i in idxs
-        for j in range(2,length(i))
-            append!(ei,i[1])
-            append!(ej,i[j])
-        end
-    end
-    G = sparse(ei,ej,ones(length(ei)),size(Xgraph,1),size(Xgraph,1))
-    G = max.(G,G')
-    lens = Xnoisy[:,randperm[size(Xnoisy,2)]][:,end-k+1:end]
-    lens = lens .- mean(lens)
-    lens = lens ./ norm(lens)
-    @show norm(lens)
-    @show var(lens)
-    return Xnoisy, Xgraph, G, lens
-end
 
 function draw_pie(dist_dict, xpos, ypos, msize, p, colors, showlabels;lw = 2.0, actuallabels = [])
     dist = [v for (k,v) in dist_dict]
@@ -109,23 +37,23 @@ function draw_pie(dist_dict, xpos, ypos, msize, p, colors, showlabels;lw = 2.0, 
     return p
 end
 
-function getlayout(A::SparseMatrixCSC;
-    layout_cands = Dict(nx.spring_layout=>[],nx.spectral_layout=>[],
-    nx.kamada_kawai_layout=>[],nx.planar_layout=>[],nx.random_layout=>[]))
+function getlayout(A::SparseMatrixCSC)
     """
     takes as input the reeb graph adjacency matrix and returns xy coordinates for all the considered layout candidates
     g = SimpleGraph(A,layout)
     """
     nx = pyimport("networkx")
+    layout_cands = Dict(nx.spring_layout=>[],nx.spectral_layout=>[],
+    nx.kamada_kawai_layout=>[],nx.planar_layout=>[],nx.random_layout=>[])
     g = nx.Graph()
     edgelist = hcat(findnz(A)[1:2]...)
     for i in range(1,size(edgelist,1))
         g.add_edge(edgelist[i,1],edgelist[i,2])
     end
-    [push!(layout_cands[i],zeros(10,2)) for i in keys(layout_cands)]
+    [push!(layout_cands[i],zeros(size(A,1),2)) for i in keys(layout_cands)]
     for i in keys(layout_cands)
         @show i
-        dict_cords = i(gg)
+        dict_cords = i(g)
         [layout_cands[i][1][j,:] = dict_cords[j] for (j,v) in dict_cords]
     end
     return layout_cands
@@ -160,6 +88,8 @@ function get_graph_distance(reps_graph)
     return dist_matrix
 end
 
+
+
 function errors_and_accuracies(tsne_emb, G_reeb, rc, rns, orig; nns_to_test = [6])
     """for calculating spearman correlation"""
     true_positive = Dict("gtda"=>[],"tsne"=>[])
@@ -182,12 +112,12 @@ function errors_and_accuracies(tsne_emb, G_reeb, rc, rns, orig; nns_to_test = [6
     tover = time() - begining
     @show tover
     dists = max.(dists,dists');
-    dists = dists - I;  
+    dists = dists - I;
     sc_gtda = scomponents(G_reeb);
     for (i,nn) in enumerate(nns_to_test)
         tsne_graph = make_graph(tsne_emb, num_nn = nn);
         tsne_dist = get_graph_distance(tsne_graph);
-        orig_graph = make_graph(orig, num_nn = nn); 
+        orig_graph = make_graph(orig, num_nn = nn);
         orig_graph_distance = get_graph_distance(orig_graph);
         sc_orig = scomponents(orig_graph);
         tsne_acc, tsne_err, gtda_acc, gtda_err = [],[],[],[]
@@ -249,7 +179,7 @@ function errors_and_accuracies(tsne_emb, G_reeb, rc, rns, orig; nns_to_test = [6
     return true_positive, true_negative
 end
 
- 
+
 function triplet_accuracy(G,cand_G;nodes = [],sample_size = 3000, ntrials = 3)
     #https://github.com/danchern97/RTD_AE
     #inputs are the distance graphs, nodes = unique([v for v in gtdaobj.reeb2node])
@@ -283,7 +213,7 @@ function rtd(x_dist, z_dist)
     function get_indices(DX, rc, dim, card)
         dgm = rc[dim+1]  # Persistence diagram for given dimension
         indices, pers = [], []
-        
+
         for (birth, death, simplex) in dgm
             if length(simplex) == dim+1
                 i1 = argmax(DX[simplex, simplex])  # Get max pairwise distance
@@ -291,7 +221,7 @@ function rtd(x_dist, z_dist)
                 pers = vcat(pers, death - birth)
             end
         end
-        
+
         perm = sortperm(pers, rev=true)
         indices = indices[perm][1:min(4*card, length(indices))]
         return vcat(indices, zeros(Int, max(0, 4*card - length(indices))))
@@ -317,11 +247,11 @@ function rtd(x_dist, z_dist)
         all_dgms = []
         for ids in all_ids
             tmp_idx = reshape(ids, (2*card, 2))
-            dgm = hcat(reshape(DX[tmp_idx[1:2:end, 1], tmp_idx[1:2:end, 2]], (card, 1)), 
+            dgm = hcat(reshape(DX[tmp_idx[1:2:end, 1], tmp_idx[1:2:end, 2]], (card, 1)),
            reshape(DX[tmp_idx[2:2:end, 1], tmp_idx[2:2:end, 2]], (card, 1)))
             push!(all_dgms, dgm)
         end
-        
+
         return all_dgms
     end
 
@@ -333,8 +263,6 @@ function rtd(x_dist, z_dist)
     return loss_xz
 end
 """
-
-
 
 
 
