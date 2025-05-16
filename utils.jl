@@ -1,11 +1,9 @@
 
-using Random, Statistics, Distributions, TSne, LinearAlgebra, StatsBase, NearestNeighbors, 
+using Random, Statistics, Distributions, LinearAlgebra, StatsBase, NearestNeighbors, 
       SparseArrays, DataFrames, JSON, JLD2, FileIO, MatrixNetworks, Graphs, GraphPlot, NPZ
 
-include("GraphTDA.jl")
 
-
-function draw_pie(dist_dict, xpos, ypos, msize, p, colors, showlabels;lw = 2.0, actuallabels = [])
+function draw_pie(dist_dict, xpos, ypos, msize, ax, colors, showlabels;lw = 2.0, actuallabels = [])
     dist = [v for (k,v) in dist_dict]
     distkey = [Int(k) for (k,v) in dist_dict]
     if actuallabels==[]
@@ -18,6 +16,7 @@ function draw_pie(dist_dict, xpos, ypos, msize, p, colors, showlabels;lw = 2.0, 
         angles = LinRange(2 * π * r1, 2 * π * r2, 50)
         x = msize .* [0;cos.(angles)]
         y = msize .* [0;sin.(angles)]
+        points = hcat(x .+ xpos, y .+ ypos)
         if dkey in showlabels
             c = findfirst(i->distkey[i]==dkey,range(1,length(distkey)))
             if actuallabels != distkey
@@ -25,16 +24,22 @@ function draw_pie(dist_dict, xpos, ypos, msize, p, colors, showlabels;lw = 2.0, 
             else
                 labelstoplot = actuallabels[c]
             end
-            plot!(p, x .+ xpos, y .+ ypos, fill = (0,colors[dkey]),seriestype=:shape,linewidth=0.0,labels = "$(labelstoplot)")
+            poly = PyPlot.matplotlib.patches.Polygon(points, closed=true,
+            facecolor=colors[dkey], edgecolor="none", label=string(labelstoplot))
         else
-            plot!(p, x .+ xpos, y .+ ypos, fill = (0,colors[dkey]),seriestype=:shape,linewidth=0.0,labels = "")
+            poly = PyPlot.matplotlib.patches.Polygon(points, closed=true,
+                facecolor=colors[dkey], edgecolor="none")
         end
+        ax.add_patch(poly)
     end
     angles = LinRange(0, 2 * π, 100)
     x = msize .* cos.(angles)
     y = msize .* sin.(angles)
-    plot!(p,x .+ xpos, y .+ ypos, seriestype=:shape, lw=lw, fillalpha=0.01,labels = "")
-    return p
+    points = hcat(x,y)
+    poly = PyPlot.matplotlib.patches.Polygon(points,
+        closed=true,alpha=0.01, edgecolor="black", linewidth=lw)
+    ax.add_patch(poly)
+    return ax
 end
 
 function getlayout(A::SparseMatrixCSC)
@@ -44,7 +49,7 @@ function getlayout(A::SparseMatrixCSC)
     """
     nx = pyimport("networkx")
     layout_cands = Dict(nx.spring_layout=>[],nx.spectral_layout=>[],
-    nx.kamada_kawai_layout=>[],nx.planar_layout=>[],nx.random_layout=>[])
+			nx.kamada_kawai_layout=>[])#,nx.planar_layout=>[],nx.random_layout=>[])
     g = nx.Graph()
     edgelist = hcat(findnz(A)[1:2]...)
     for i in range(1,size(edgelist,1))
@@ -88,7 +93,17 @@ function get_graph_distance(reps_graph)
     return dist_matrix
 end
 
-
+function draw_graph_segments(A::SparseMatrixCSC, xy)
+    ei, ej = findnz(triu(A,1))[1:2]
+    linesx = Vector{Vector{Float64}}()
+    linesy = Vector{Vector{Float64}}()
+    for nz in 1:length(ei)
+        src, dst = ei[nz], ej[nz]
+        push!(linesx, [xy[src,1], xy[dst,1]])
+        push!(linesy, [xy[src,2], xy[dst,2]])
+    end
+    return linesx, linesy
+end
 
 function errors_and_accuracies(tsne_emb, G_reeb, rc, rns, orig; nns_to_test = [6])
     """for calculating spearman correlation"""
@@ -202,7 +217,8 @@ function triplet_accuracy(G,cand_G;nodes = [],sample_size = 3000, ntrials = 3)
     return mean(acc)
 end
 
-"""using Ripserer
+#=
+using Ripserer
 function rtd(x_dist, z_dist)
     #https://github.com/danchern97/RTD_AE
     function lp_loss(a, b, p=2)
@@ -262,7 +278,8 @@ function rtd(x_dist, z_dist)
     end
     return loss_xz
 end
-"""
+
+=#
 
 
 

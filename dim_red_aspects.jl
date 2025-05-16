@@ -10,17 +10,47 @@ for downstream in inference, 6 points of a dimension reduction methods
 
 
 #1a. datasets for 2D->2D(shape distortion) - galaxy(2D), clusters 2D, shape 2D
+dataname = "galaxies"
+X, labels = galaxies();
+X = X .- mean(X)
+X = X ./ std(X)
+println("got data")
+begining = time()
+Xnoisy,Xgraph,G,lens = topological_lens(X,3,dims = 3)
+tym1 = time() - begining
+println("got lens")
+min_group_size = 10
+max_split_size =70
+min_component_group = 1
+overlap = 0.15
+gtdaobj,timereeb,_,_ = @timed GraphTDA.analyzepredictions(lens,G = G,min_group_size=10,
+        max_split_size=70,min_component_group=1,verbose=false,overlap = 0.15,
+        split_thd=0,merge_thd = 0.01,labels = labels);
+
+println("going to get diffrent layouts")
+coords_dict =  getlayout(gtdaobj.G_reeb) #dictionary of 5 layout coords
 
 
-#1b. run the dimension reduction algorithm on it
+combo_dict = Dict("G_reeb"=>findnz(gtdaobj.G_reeb)[1:2],"rc"=>gtdaobj.reeb2node,
+        "rn"=>gtdaobj.node2reeb, "all_coords"=>coords_dict, "time"=>round((timereeb+tym1),sigdigits=4),
+        "params"=>Dict("min_group_size"=>min_group_size,"max_split_size"=>max_split_size,
+        "min_component_group"=>min_component_group,"overlap"=>overlap),"orig_data"=>X,"orig_labels"=>labels)
+f = open("/p/mnt/homes/dshur/topo_dim_red/stored_embeddings/$(dataname).json","w")
+JSON.print(f,combo_dict)
+close(f)
 
-#1c. save the picture
+println("doing different methods")
+
+getemall(X,dataname,num_nn = 10)
+println("done")
+
+#need error for all of them
+
+
 
 
 #2a. Datasets for 3D->2D (mainatin shape) -Mammoth, Meridians, Nested spheres, RTD spheres
 
-
-#3a. To higher dimensions (RTD spheres to 3D)
 
 
 #4a. Path consistent (PHATE tree, NE)
