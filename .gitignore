@@ -1,0 +1,5 @@
+# Ignore folders
+stored_embeddings/
+synthetic_data/
+
+
