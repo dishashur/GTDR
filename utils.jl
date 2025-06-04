@@ -1,9 +1,9 @@
 
-using Random, Statistics, Distributions, LinearAlgebra, StatsBase, NearestNeighbors, 
+using DelimitedFiles,Random, Statistics, Distributions, LinearAlgebra, StatsBase, NearestNeighbors, 
       SparseArrays, DataFrames, JSON, JLD2, FileIO, MatrixNetworks, Graphs, GraphPlot, NPZ
 
 
-function draw_pie(dist_dict, xpos, ypos, msize, ax, colors, showlabels;lw = 2.0, actuallabels = [])
+function draw_pie(dist_dict, xpos, ypos, msize, ax, color_map, showlabels;lw = 2.0, actuallabels = [])
     dist = [v for (k,v) in dist_dict]
     distkey = [Int(k) for (k,v) in dist_dict]
     if actuallabels==[]
@@ -67,20 +67,17 @@ end
 
 function make_graph(X;leafsize = 25,num_nn = 6)
     @show num_nn
-    @show n = size(X,1)
-    @time kdtree = KDTree(X'; leafsize = leafsize)
-    @time idxs, dists = NearestNeighbors.knn(kdtree, X', num_nn, true);
-    ei = Vector{Int64}(undef, (num_nn - 1)*n)
-    ej = Vector{Int64}(undef, (num_nn - 1)*n)
-    ctr = 1
-    for i in 1:n
-        for j in 2:num_nn
-            ei[ctr] = idxs[i][j]
-            ej[ctr] = i           
-            ctr += 1
+    @show size(X)
+    kdtree = KDTree(X'; leafsize = leafsize)
+    idxs, dists = NearestNeighbors.knn(kdtree, X', num_nn, true);
+    ei = []
+    ej = []
+    for i in idxs
+        for j in range(2,length(i))
+            append!(ei,i[1])
+            append!(ej,i[j])
         end
     end
-    @show ctr
     G = sparse(ei,ej,ones(length(ei)),size(X,1),size(X,1))
     G = max.(G,G')
     return G
@@ -145,7 +142,7 @@ function errors_and_accuracies(G_orig, G_cand; cand_name = "GTDA", rc=[], rns=[]
     if cand_name == "GTDA"
         gtda_dist = get_graph_distance(G_cand);
         reebnodes = [[] for _ in range(1,n)];
-        [reebnodes[parse(Int64,k)] = Int.(v) for (k,v) in rns];
+        [reebnodes[k] = Int.(v) for (k,v) in rns];
         t = time()
         for i in range(1,n) 
         if reebnodes[i] != []
@@ -296,6 +293,7 @@ function rtd(x_dist, z_dist)
 end
 
 =#
+
 
 
 

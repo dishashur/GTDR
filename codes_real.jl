@@ -12,7 +12,7 @@
 
 """
 
-using Downloads, ZipFile, NPZ, FileIO, ImageIO, Images, MatrixNetworks
+using Downloads, ZipFile, NPZ, FileIO, ImageIO, Images, MatrixNetworks, Statistics
 
 function get_mnist()
     name = "mnist"
@@ -33,23 +33,25 @@ function get_mnist()
 end
 
 function get_fmnist()
+    @info "Fashon-MNIST"
     file_train = "real_data/fmnist_train.csv"
-    Downloads.download("https://github.com/fpleoni/fashion_mnist/raw/refs/heads/master/fashion-mnist_train.csv",file_train)
+    #Downloads.download("https://github.com/fpleoni/fashion_mnist/raw/refs/heads/master/fashion-mnist_train.csv",file_train)
+    
     data = readdlm(file_train, ',', header=true) 
     
    
-    y = Int.(data[1][:, 1])
+    y = Int.(data[1][:, 1]) .+ 1
     X = Float32.(data[1][:,2:end])
     return X,y
 end
 
 function get_coil20()
-    url = "https://cave.cs.columbia.edu/old/databases/SLAM_coil-20_coil-100/coil-20/coil-20-proc.zip"
-    zip_path = "real_data/coil-20.zip"
-    Downloads.download(url, zip_path)
+    #url = "https://cave.cs.columbia.edu/old/databases/SLAM_coil-20_coil-100/coil-20/coil-20-proc.zip"
+    #zip_path = "real_data/coil-20.zip"
+    #Downloads.download(url, zip_path)
 
-
-    image_dir = "real_data/coil-20"
+    @info "COIL-20"
+    image_dir = "real_data/coil20"
     image_files = filter(x -> endswith(x, ".png"), readdir(image_dir))
     # Load all images into an array
     images = [load(joinpath(image_dir, file)) for file in image_files]
@@ -62,6 +64,75 @@ function get_coil20()
 
 end
 
+
+function get_melanoma()
+    @info "metastatic melanoma"
+
+    data = readdlm("real_data/GSE72056_melanoma_single_cell_revised_v2.txt")
+    temp = readdlm("real_data/GSE72056_series_matrix.txt")
+    labels = ones(size(data,2)-1) #0 is unresolved
+    [labels[i-1] = 8 for i in range(2, size(data,2)) if data[3,i]==2] #malignant
+    [labels[i-1] = data[4,i] + 1 for i in range(2, size(data,2)) if data[3,i]==1] #non-malignant type
+    X = Matrix(data[5:end,2:end]')
+    return X, labels
+end
+
+function get_humandevelopmental()
+    @info "human brain organoid developmental data"
+
+    data = npzread("real_data/human-409b2.data.npy");
+    labels = readlines("real_data/labels409b2.csv");
+
+    num_labels = zeros(length(labels))
+    ulabels = unique(labels)
+    for i in range(1,length(ulabels))
+        num_labels[findall(j->j==ulabels[i],labels)] .= i
+    end
+    actual_labels = Int.(num_labels)
+    return data,Dict("actual_labels"=>actual_labels,"true_labels"=>labels)
+end
+
+function get_zfishembryo()
+    @info "zebrafish embryo developmental data"
+    data = npzread("real_data/zfish_data.npy");
+    labels = JSON.parsefile("real_data/zfish_labels.json");
+    times = labels["labels"];
+    utiem = unique(times) 
+    num_labels = zeros(length(times)) 
+    for i in range(1,length(utiem))
+        num_labels[findall(j->j==utiem[i],times)] .= i
+    end
+    time_labels = Int.(num_labels)
+
+    tissues = labels["altlabels"];
+    utiem = unique(tissues) 
+    num_labels = zeros(length(tissues)) 
+    for i in range(1,length(utiem))
+        num_labels[findall(j->j==utiem[i],tissues)] .= i
+    end
+    tissue_labels = Int.(num_labels)
+
+    return data, Dict("true_labels"=>times, "actual_labels"=>time_labels)
+
+end
+
+function get_mousestem()
+    @info "MARS sequencing of mouse stem cell differentiation"
+    #this is the one used in PAGA from paul15
+    origdata = JSON.parsefile("real_data/paul15orig.json");
+    X = Matrix(hcat(origdata["X"]...)')
+    clusters = origdata["clusters"]
+    uclusters = unique(clusters)
+    num_labels = zeros(length(clusters)) 
+    for i in range(1,length(uclusters))
+        num_labels[findall(j->j==uclusters[i],clusters)] .= i
+    end
+    labels = Int.(num_labels)
+
+    return X, Dict("actual_labels"=>labels,"true_labels"=>clusters)
+end
+
+############################################# the following are ot compleetd yet ##########
 function get_20NG()
     #from LocalMAP/data/
     @info "nodes are articles colours are news groups"
@@ -116,78 +187,6 @@ function get_usps()
     @info "done"
     return X,y
 end
-
-function get_melanoma()
-    @info "metastatic melanoma"
-    name = "scRNA_melanoma"
-    data = readdlm("real_data/GSE72056_melanoma_single_cell_revised_v2.txt")
-    temp = readdlm("real_data/GSE72056_series_matrix.txt")
-    labels = ones(size(data,2)-1) #0 is unresolved
-    [labels[i-1] = 8 for i in range(2, size(data,2)) if data[3,i]==2] #malignant
-    [labels[i-1] = data[4,i] + 1 for i in range(2, size(data,2)) if data[3,i]==1] #non-malignant type
-    X = Matrix(data[5:end,2:end]')
-    labelnames = ["unresolved","T","B","Macro","Endo","CAF","NK","Malignant"]
-    return X,[labels,labelnames]
-end
-
-function get_humandevelopmental()
-    @info "human brain organoid developmental data"
-
-    data = npzread("real_data/human-409b2.data.npy");
-    labels = readlines("real_data/labels409b2.csv");
-
-    num_labels = zeros(length(labels))
-    ulabels = unique(labels)
-    for i in range(1,length(ulabels))
-        num_labels[findall(j->j==ulabels[i],labels)] .= i
-    end
-    actual_labels = Int.(num_labels)
-    return data,[actual_labels,labels]
-end
-
-function get_zebrafishembryo()
-    @info "zebrafsh embryo developmental data"
-    name = "zebrafish"
-    data = npzread("real_data/zfish_data.npy");
-    labels = JSON.parsefile("real_data/zfish_labels.json");
-    times = labels["labels"];
-    utiem = unique(times) 
-    num_labels = zeros(length(times)) 
-    for i in range(1,length(utiem))
-        num_labels[findall(j->j==utiem[i],times)] .= i
-    end
-    time_labels = Int.(num_labels)
-
-    tissues = labels["altlabels"];
-    utiem = unique(tissues) 
-    num_labels = zeros(length(tissues)) 
-    for i in range(1,length(utiem))
-        num_labels[findall(j->j==utiem[i],tissues)] .= i
-    end
-    tissue_labels = Int.(num_labels)
-
-    return data, Dict("times"=>[times,time_labels], "tissues"=>[tissues,tissue_labels])
-
-end
-
-function get_mousestemcell()
-    @info "MARS sequencing of mouse stem cell differentiation"
-    #this is the one used in PAGA from paul15
-    name = "MurineHematopiesis"
-    origdata = JSON.parsefile("real_data/paul15orig.json");
-    X = Matrix(hcat(origdata["X"]...)')
-    clusters = origdata["clusters"]
-    uclusters = unique(clusters)
-    num_labels = zeros(length(clusters)) 
-    for i in range(1,length(uclusters))
-        num_labels[findall(j->j==uclusters[i],clusters)] .= i
-    end
-    labels = Int.(num_labels)
-
-    return X, [clusters, labels]
-end
-
-############################################# the following are ot compleetd yet ##########
 
 
 function get_hydra()

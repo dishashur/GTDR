@@ -11,15 +11,16 @@ include("../plottingGTDR.jl")
 #make a parallel version of this so that for each data picture can be genrated in parallel
 #for this basic expt we only need the representation pictures
 
-real_data = Dict("mnist"=>[5,30,20,0.1],
-"fmnist" => [5,300,5,0.1],
-"coil20"=>[3,10,1,0.3],
-"melanoma"=>[1,10,5,0.3],
+real_data = Dict(
+#"fmnist" => [5,300,5,0.1],
+#"coil20"=>[3,10,1,0.3],
+#"melanoma"=>[1,10,5,0.3],
 "humandevelopmental"=> [5,50,5,0.1],
 "zfishembryo"=>[5,50,5,0.1],
 "mousestem"=> [1,15,5,0.2],
 #"20NG"=>[],
-#"usps"=>[]
+#"usps"=>[],
+#"mnist"=>[5,30,20,0.1],
 )
 
 
@@ -29,6 +30,11 @@ for (name,params) in real_data
     func_name = Symbol("get_", name)
     func = getfield(Main, func_name)
     X,labels = func()
+    if typeof(labels) <: AbstractDict
+        calc_labels = labels["actual_labels"]
+    else
+        calc_labels = labels
+    end
 
     println("got data")
 
@@ -36,9 +42,9 @@ for (name,params) in real_data
     Xnoisy,Xgraph,G,lens = topological_lens(X,10,dims = 20)
     tym1 = time() - begining
     
-    @show size(Xgraph)
-    @show size(lens)
-    println("got lens")
+    @info "graph of size" size(Xgraph)
+    @info "lens of size" size(lens)
+  
     
     min_group_size = params[1]
     max_split_size = params[2]
@@ -48,8 +54,8 @@ for (name,params) in real_data
 
     gtdaobj,timereeb,_,_ = @timed GraphTDA.analyzepredictions(lens,G = G,min_group_size=min_group_size,
             max_split_size=max_split_size,min_component_group=min_component_group,verbose=false,overlap = overlap,
-            split_thd=0,merge_thd = 0.01,labels = labels);
-    @show size(gtdaobj.G_reeb)
+            split_thd=0,merge_thd = 0.01,labels = calc_labels);
+    @info "reeb graph size" size(gtdaobj.G_reeb)
 
     println("going to get diffrent layouts")
     
@@ -65,14 +71,14 @@ for (name,params) in real_data
     JSON.print(f,combo_dict) 
     close(f)
      
+    println("doing different methods")
+    getemall(X,name,num_nn = 10)
+    println("done")
+
     println("now plotting")
     func_name = Symbol("plot_", name)
     func = getfield(Main, func_name)
     func()
-    
-    println("doing different methods")
-    getemall(X,dataname,num_nn = 10)
-    println("done")
 
 end
 

@@ -83,14 +83,15 @@ function firstexample_part2()
     f = open("/p/mnt/homes/dshur/topo_dim_red/stored_embeddings/$(dataname).json","w")
     JSON.print(f,combo_dict) 
     close(f)
-     
+
+    getemall(X,dataname,num_nn = 10)
+    println("done")
+
     println("now plotting")
     plotting_mnist()
     println("doing different methods")
 
-   getemall(X,dataname,num_nn = 10)
-    println("done")
-
+  
 end
 
 

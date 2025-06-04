@@ -34,7 +34,7 @@ function getemall(X,dataname;num_nn = 3,n_comp = 2)
         if !isdir("/p/mnt/homes/dshur/topo_dim_red/stored_embeddings/$(name)_emb")
             mkdir("/p/mnt/homes/dshur/topo_dim_red/stored_embeddings/$(name)_emb")
         end
-        npzwrite("/p/mnt/homes/dshur/topo_dim_red/stored_embeddings/$(name)_emb/$(dataname).npy",emb)
+        #npzwrite("/p/mnt/homes/dshur/topo_dim_red/stored_embeddings/$(name)_emb/$(dataname).npy",emb)
         push!(allofem["$(name)"],Dict("$(dataname)"=>emb))
     end
     @save "/p/mnt/homes/dshur/topo_dim_red/stored_embeddings/$(dataname).jld2" allofem
